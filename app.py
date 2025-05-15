@@ -59,7 +59,7 @@ def buscar_eventos(service, data_inicio_iso, data_fim_iso):
 
     return eventos_formatados
 
-# Interface Web
+# Interface Streamlit
 st.set_page_config(page_title="📆 Extrator de Agenda", layout="wide")
 st.title("📅 Extrator de Eventos do Google Agenda")
 
@@ -81,10 +81,20 @@ if st.button("🔍 Buscar eventos"):
 
             if eventos:
                 df = pd.DataFrame(eventos)
+
+                # Converter colunas de data para datetime e formatar no padrão brasileiro
+                for col in ['Início', 'Término']:
+                    df[col] = pd.to_datetime(df[col], errors='coerce').dt.strftime('%d/%m/%Y %H:%M')
+
                 st.success(f"✅ {len(df)} eventos encontrados.")
                 st.dataframe(df, use_container_width=True)
-                st.download_button("📥 Baixar Excel", data=df.to_excel(index=False, engine='openpyxl'),
-                                   file_name=f"agenda_{data_inicio}_a_{data_fim}.xlsx")
+
+                # Nome do arquivo no padrão brasileiro
+                nome_arquivo = f"agenda_{data_inicio.strftime('%d-%m-%Y')}_a_{data_fim.strftime('%d-%m-%Y')}.xlsx"
+
+                # Criar Excel e disponibilizar para download
+                buffer = df.to_excel(index=False, engine='openpyxl')
+                st.download_button("📥 Baixar Excel", data=buffer, file_name=nome_arquivo)
             else:
                 st.warning("⚠️ Nenhum evento encontrado no período.")
         except Exception as e:
