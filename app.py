@@ -61,6 +61,7 @@ def buscar_eventos(service, data_inicio_iso, data_fim_iso):
 
 # Interface Streamlit
 st.set_page_config(page_title="📆 Extrator de Agenda", layout="wide")
+st.image("CCP iavc.jpg", width=200)
 st.title("📅 Extrator de Eventos do Google Agenda")
 
 col1, col2 = st.columns(2)
