@@ -4,13 +4,24 @@ import os
 import pickle
 import json
 from datetime import datetime
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from google.auth.transport.requests import Request
 
 # Configurações iniciais
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 CALENDAR_ID = 'jh8dpotn9etu9o231tlldvn6ms@group.calendar.google.com'
+
+def autenticar_google():
+    os.makedirs(".streamlit", exist_ok=True)
+    with open(".streamlit/credentials.json", "w") as f:
+        json.dump(st.secrets["google_credentials"].to_dict(), f)
+
+    credentials = service_account.Credentials.from_service_account_file(
+        ".streamlit/credentials.json",
+        scopes=SCOPES
+    )
+    return build("calendar", "v3", credentials=credentials)
+
 
 # 🔐 Função para autenticar com Google via st.secrets
 def autenticar_google():
