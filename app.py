@@ -20,7 +20,13 @@ def autenticar_google():
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+            import json
+
+with open(".streamlit/credentials.json", "w") as f:
+    json.dump(st.secrets["google_credentials"], f)
+
+flow = InstalledAppFlow.from_client_secrets_file(".streamlit/credentials.json", SCOPES)
+
             creds = flow.run_console()
         with open("token.pkl", "wb") as token:
             pickle.dump(creds, token)
