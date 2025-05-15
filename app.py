@@ -27,7 +27,7 @@ def autenticar_google():
             # Salva as credenciais do secret como arquivo temporário
             os.makedirs(".streamlit", exist_ok=True)
             with open(".streamlit/credentials.json", "w") as f:
-                json.dump(st.secrets["google_credentials"], f)
+                json.dump(st.secrets["google_credentials"].to_dict(), f)
 
             flow = InstalledAppFlow.from_client_secrets_file(".streamlit/credentials.json", SCOPES)
             creds = flow.run_console()
