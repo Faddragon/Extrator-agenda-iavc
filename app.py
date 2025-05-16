@@ -5,10 +5,11 @@ import json
 from datetime import datetime
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from io import BytesIO  # ✅ Importado no topo
 
 # Configurações
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
-CALENDAR_ID = 'jh8dpotn9etu9o231tlldvn6ms@group.calendar.google.com'  # ou "primary"
+CALENDAR_ID = 'jh8dpotn9etu9o231tlldvn6ms@group.calendar.google.com'
 
 # Autenticação com conta de serviço
 def autenticar_google():
@@ -84,25 +85,19 @@ if st.button("🔍 Buscar eventos"):
                 st.success(f"✅ {len(df)} eventos encontrados.")
                 st.dataframe(df, use_container_width=True)
 
-from io import BytesIO
+                # Exportar Excel
+                nome_arquivo = f"agenda_{data_inicio.strftime('%d-%m-%Y')}_a_{data_fim.strftime('%d-%m-%Y')}.xlsx"
+                buffer = BytesIO()
+                df.to_excel(buffer, index=False, engine='openpyxl')
+                buffer.seek(0)
 
-# Nome do arquivo
-nome_arquivo = f"agenda_{data_inicio.strftime('%d-%m-%Y')}_a_{data_fim.strftime('%d-%m-%Y')}.xlsx"
-
-# Criar Excel em memória
-buffer = BytesIO()
-df.to_excel(buffer, index=False, engine='openpyxl')
-buffer.seek(0)  # Volta o ponteiro para o início do arquivo
-
-# Botão de download
-st.download_button(
-    label="📥 Baixar como Excel",
-    data=buffer,
-    file_name=nome_arquivo,
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
+                st.download_button(
+                    label="📥 Baixar como Excel",
+                    data=buffer,
+                    file_name=nome_arquivo,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
             else:
                 st.warning("⚠️ Nenhum evento encontrado.")
         except Exception as e:
             st.error(f"❌ Erro: {e}")
-
