@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from io import BytesIO  # ✅ Importado no topo
+from io import BytesIO
 
 # Configurações
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
@@ -57,7 +57,7 @@ def buscar_eventos(service, data_inicio_iso, data_fim_iso):
 
     return eventos_formatados
 
-# Interface Streamlit
+# Interface
 st.set_page_config(page_title="📆 Extrator de Agenda IAVC", layout="wide")
 st.title("📅 Extrator de Eventos do Google Agenda")
 
@@ -67,8 +67,11 @@ with col1:
 with col2:
     data_fim = st.date_input("📆 Data final", value=datetime.today())
 
-if st.button("🔍 Buscar eventos"):
-    with st.spinner("Autenticando e coletando eventos..."):
+# Entrada da senha
+senha = st.text_input("🔐 Digite a senha para liberar o download:", type="password")
+
+if st.button("🔍 Buscar e preparar arquivo"):
+    with st.spinner("🔐 Autenticando e processando..."):
         try:
             service = autenticar_google()
             eventos = buscar_eventos(
@@ -77,27 +80,28 @@ if st.button("🔍 Buscar eventos"):
                 data_fim.strftime('%Y-%m-%d')
             )
 
-            if eventos:
+            if not eventos:
+                st.warning("⚠️ Nenhum evento encontrado.")
+            else:
                 df = pd.DataFrame(eventos)
                 for col in ['Início', 'Término']:
                     df[col] = pd.to_datetime(df[col], errors='coerce').dt.strftime('%d/%m/%Y %H:%M')
 
-                st.success(f"✅ {len(df)} eventos encontrados.")
-                st.dataframe(df, use_container_width=True)
-
-                # Exportar Excel
+                # Armazenar em buffer
                 nome_arquivo = f"agenda_{data_inicio.strftime('%d-%m-%Y')}_a_{data_fim.strftime('%d-%m-%Y')}.xlsx"
                 buffer = BytesIO()
                 df.to_excel(buffer, index=False, engine='openpyxl')
                 buffer.seek(0)
 
-                st.download_button(
-                    label="📥 Baixar como Excel",
-                    data=buffer,
-                    file_name=nome_arquivo,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-            else:
-                st.warning("⚠️ Nenhum evento encontrado.")
+                if senha == "ccpiavc2025":
+                    st.success("✅ Senha correta. Clique para baixar:")
+                    st.download_button(
+                        label="📥 Baixar como Excel",
+                        data=buffer,
+                        file_name=nome_arquivo,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                else:
+                    st.error("❌ Senha incorreta. Digite a senha correta para liberar o download.")
         except Exception as e:
             st.error(f"❌ Erro: {e}")
