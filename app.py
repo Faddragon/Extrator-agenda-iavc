@@ -1,28 +1,35 @@
 import streamlit as st
 import pandas as pd
-import os
 import json
 from datetime import datetime
-from google.oauth2 import service_account
+from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from google.auth.transport.requests import Request
+import pickle
+import os
 
-# 📌 Configurações
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 CALENDAR_ID = 'jh8dpotn9etu9o231tlldvn6ms@group.calendar.google.com'
 
-# 🔐 Autenticação com conta de serviço
 def autenticar_google():
-    os.makedirs(".streamlit", exist_ok=True)
-    with open(".streamlit/credentials.json", "w") as f:
-        json.dump(st.secrets["google_credentials"].to_dict(), f)
+    creds = None
+    if os.path.exists("token.pkl"):
+        with open("token.pkl", "rb") as token:
+            creds = pickle.load(token)
 
-    credentials = service_account.Credentials.from_service_account_file(
-        ".streamlit/credentials.json",
-        scopes=SCOPES
-    )
-    return build("calendar", "v3", credentials=credentials)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            config_dict = st.secrets["google_auth"]
+            flow = InstalledAppFlow.from_client_config(config_dict, SCOPES)
+            creds = flow.run_local_server(port=0)
 
-# 📅 Buscar eventos na agenda
+        with open("token.pkl", "wb") as token:
+            pickle.dump(creds, token)
+
+    return build("calendar", "v3", credentials=creds)
+
 def buscar_eventos(service, data_inicio_iso, data_fim_iso):
     eventos_formatados = []
     page_token = None
@@ -56,25 +63,19 @@ def buscar_eventos(service, data_inicio_iso, data_fim_iso):
 
     return eventos_formatados
 
-# 🖥️ Interface Streamlit
+# Streamlit interface
 st.set_page_config(page_title="📆 Extrator de Agenda IAVC", layout="wide")
-
-# Logotipo (opcional)
-if os.path.exists("logo_iavc.png"):
-    st.image("logo_iavc.png", width=200)
 
 st.title("📅 Extrator de Eventos do Google Agenda")
 
-# Datas de início e fim
 col1, col2 = st.columns(2)
 with col1:
     data_inicio = st.date_input("📆 Data inicial", value=datetime.today())
 with col2:
     data_fim = st.date_input("📆 Data final", value=datetime.today())
 
-# Botão de busca
 if st.button("🔍 Buscar eventos"):
-    with st.spinner("Autenticando e coletando eventos da agenda..."):
+    with st.spinner("Autenticando e coletando eventos..."):
         try:
             service = autenticar_google()
             eventos = buscar_eventos(
@@ -85,20 +86,18 @@ if st.button("🔍 Buscar eventos"):
 
             if eventos:
                 df = pd.DataFrame(eventos)
-
-                # Datas no formato brasileiro
                 for col in ['Início', 'Término']:
                     df[col] = pd.to_datetime(df[col], errors='coerce').dt.strftime('%d/%m/%Y %H:%M')
 
                 st.success(f"✅ {len(df)} eventos encontrados.")
                 st.dataframe(df, use_container_width=True)
 
-                # Exportar Excel
                 buffer = df.to_excel(index=False, engine='openpyxl')
                 nome_arquivo = f"agenda_{data_inicio.strftime('%d-%m-%Y')}_a_{data_fim.strftime('%d-%m-%Y')}.xlsx"
                 st.download_button("📥 Baixar como Excel", data=buffer, file_name=nome_arquivo)
             else:
-                st.warning("⚠️ Nenhum evento encontrado no período.")
+                st.warning("⚠️ Nenhum evento encontrado.")
         except Exception as e:
-            st.error(f"❌ Erro: {e}")
+            st.error(f"Erro: {e}")
+
 
