@@ -1,35 +1,28 @@
 import streamlit as st
 import pandas as pd
+import os
 import json
 from datetime import datetime
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from google.auth.transport.requests import Request
-import pickle
-import os
 
+# Configurações
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
-CALENDAR_ID = 'jh8dpotn9etu9o231tlldvn6ms@group.calendar.google.com'
+CALENDAR_ID = 'jh8dpotn9etu9o231tlldvn6ms@group.calendar.google.com'  # ou "primary"
 
+# Autenticação com conta de serviço
 def autenticar_google():
-    creds = None
-    if os.path.exists("token.pkl"):
-        with open("token.pkl", "rb") as token:
-            creds = pickle.load(token)
+    os.makedirs(".streamlit", exist_ok=True)
+    with open(".streamlit/credentials.json", "w") as f:
+        json.dump(st.secrets["google_credentials"].to_dict(), f)
 
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            config_dict = st.secrets["google_auth"]
-            flow = InstalledAppFlow.from_client_config(config_dict, SCOPES)
-            creds = flow.run_local_server(port=0)
+    credentials = service_account.Credentials.from_service_account_file(
+        ".streamlit/credentials.json",
+        scopes=SCOPES
+    )
+    return build("calendar", "v3", credentials=credentials)
 
-        with open("token.pkl", "wb") as token:
-            pickle.dump(creds, token)
-
-    return build("calendar", "v3", credentials=creds)
-
+# Buscar eventos
 def buscar_eventos(service, data_inicio_iso, data_fim_iso):
     eventos_formatados = []
     page_token = None
@@ -63,9 +56,8 @@ def buscar_eventos(service, data_inicio_iso, data_fim_iso):
 
     return eventos_formatados
 
-# Streamlit interface
+# Interface Streamlit
 st.set_page_config(page_title="📆 Extrator de Agenda IAVC", layout="wide")
-
 st.title("📅 Extrator de Eventos do Google Agenda")
 
 col1, col2 = st.columns(2)
@@ -98,6 +90,5 @@ if st.button("🔍 Buscar eventos"):
             else:
                 st.warning("⚠️ Nenhum evento encontrado.")
         except Exception as e:
-            st.error(f"Erro: {e}")
-
+            st.error(f"❌ Erro: {e}")
 
